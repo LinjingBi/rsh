@@ -1,0 +1,12 @@
+.cursorrules
+
+# Rust build artifacts
+target/
+
+# Rust/Cargo backups
+**/*.rs.bk
+
+# General editor/OS noise
+*.log
+.DS_Store
+

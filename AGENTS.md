@@ -1,0 +1,3 @@
+- always check system_prompt.md for system prompt.
+- always check readme.md for high level project design.
+- always check snd update the TODO.md to keep in track the development progress.
