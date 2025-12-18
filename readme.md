@@ -197,4 +197,6 @@ Any other line (including lines that later fail to compile) is treated as Rust c
 - Expression auto-printing.
 - Persistent runtime state across sessions.
 - LLM-generated code execution.
+- User-controlled cleanup flag(cleanup target dir).
+- Editable history.
 

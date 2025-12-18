@@ -1,11 +1,12 @@
 use std::error::Error;
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use rustyline::history::DefaultHistory;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AsyncRuntime {
@@ -24,6 +25,8 @@ struct Session {
     preamble: Vec<String>,
     body: Vec<String>,
     mode: Mode,
+    prev_preamble_len: usize,
+    prev_body_len: usize,
 }
 
 impl Session {
@@ -32,6 +35,8 @@ impl Session {
             preamble: Vec::new(),
             body: Vec::new(),
             mode: Mode::Sync,
+            prev_preamble_len: 0,
+            prev_body_len: 0,
         }
     }
 
@@ -39,9 +44,15 @@ impl Session {
         self.preamble.clear();
         self.body.clear();
         self.mode = Mode::Sync;
+        self.prev_preamble_len = 0;
+        self.prev_body_len = 0;
     }
 
     fn add_code_block(&mut self, block: &str) {
+        // snapshot previous successful state
+        self.prev_preamble_len = self.preamble.len();
+        self.prev_body_len = self.body.len();
+
         for line in block.lines() {
             let trimmed_start = line.trim_start();
             if trimmed_start.is_empty() {
@@ -110,8 +121,9 @@ fn is_preamble_line(line: &str) -> bool {
     false
 }
 
+
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut rl = Editor::<()>::new()?;
+    let mut rl = Editor::<(), DefaultHistory>::new()?;
     let mut session = Session::new();
 
     loop {
@@ -133,8 +145,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             Ok(Some(Input::Code(block))) => {
                 session.add_code_block(&block);
-                if let Err(e) = run_session(&session) {
+                if let Err(e) = run_session(&mut session) {
                     eprintln!("Internal rsh error: {e}");
+                    break;
                 }
             }
             Ok(None) => {
@@ -147,6 +160,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     }
+    // cleanup
+    let rsh_path = get_rsh_path();
+    if rsh_path.exists() {
+        if let Err(e) = fs::remove_file(&rsh_path) {
+            eprintln!("rsh: failed to remove generated __rsh.rs: {e}");
+        }
+    }
 
     Ok(())
 }
@@ -156,7 +176,7 @@ enum Input {
     Code(String),
 }
 
-fn read_block(rl: &mut Editor<()>) -> Result<Option<Input>, ReadlineError> {
+fn read_block(rl: &mut Editor<(), DefaultHistory>) -> Result<Option<Input>, ReadlineError> {
     let mut block: Vec<String> = Vec::new();
     let mut prompt = "rsh> ";
 
@@ -183,7 +203,11 @@ fn read_block(rl: &mut Editor<()>) -> Result<Option<Input>, ReadlineError> {
             }
         }
 
-        rl.add_history_entry(line.as_str());
+        // inside read_block, where you currently call add_history_entry
+        if let Err(e) = rl.add_history_entry(line.as_str()) {
+        // internal failure: bubble up so main can print and exit
+            return Err(e);
+        }
         block.push(line);
         prompt = "...> ";
     }
@@ -207,14 +231,18 @@ fn run_session(session: &mut Session) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    // If already async, just keep going – do not try to switch again.
-    if matches!(session.mode, Mode::Async(_)) {
-        return Ok(());
-    }
-
     // See if error looks async-related.
     let stderr_str = String::from_utf8_lossy(&output.stderr);
+    // not aysnc error, remove the code from session
     if !looks_like_async_error(&stderr_str) {
+        // user code failed: roll back buffers only
+        session.preamble.truncate(session.prev_preamble_len);
+        session.body.truncate(session.prev_body_len);
+        return Ok(());
+    }
+    // yes async-liked error
+    // If already async, just keep going – do not try to switch again.
+    if matches!(session.mode, Mode::Async(_)) {
         return Ok(());
     }
 
@@ -238,8 +266,12 @@ fn run_session(session: &mut Session) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn get_rsh_path() -> PathBuf {
+    Path::new("src").join("bin").join("__rsh.rs")
+}
+
 fn write_rsh_bin(session: &Session) -> Result<(), Box<dyn Error>> {
-    let path = Path::new("src").join("bin").join("__rsh.rs");
+    let path = get_rsh_path();
     let mut code = String::new();
 
     // Preamble at module scope.
@@ -317,6 +349,7 @@ fn write_rsh_bin(session: &Session) -> Result<(), Box<dyn Error>> {
 fn run_cargo_rsh() -> Result<std::process::Output, Box<dyn Error>> {
     let output = Command::new("cargo")
         .arg("run")
+        .arg("--quiet")
         .arg("--bin")
         .arg("__rsh")
         .output()?;

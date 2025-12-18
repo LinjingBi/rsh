@@ -6,5 +6,7 @@
 - [x] Generate `src/bin/__rsh.rs` from buffers and run `cargo run --bin __rsh`.
 - [x] Detect async-related compilation errors and switch to async mode with detected runtime (tokio / async-std / smol).
 - [x] Keep history only for current session and avoid modifying the target project’s `Cargo.toml` or `src/main.rs`.
+- [ ] Refactor project layout.
+- [ ] Add a user guide.
 
 
