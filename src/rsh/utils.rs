@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 
 use super::session::AsyncRuntime;
@@ -29,8 +30,9 @@ pub fn looks_like_async_error(stderr: &str) -> bool {
     patterns.iter().any(|p| stderr.contains(p))
 }
 
-pub fn detect_async_runtime() -> Option<AsyncRuntime> {
-    let Ok(toml) = fs::read_to_string("Cargo.toml") else {
+pub fn detect_async_runtime<P: AsRef<Path>>(cargo_path: P) -> Option<AsyncRuntime> {
+    let Ok(toml) = fs::read_to_string(cargo_path) else {
+        eprintln!("rsh: Error loading Cargo.toml for detecting async runtime.");
         return None;
     };
     let lower = toml.to_lowercase();

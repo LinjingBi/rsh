@@ -3,9 +3,6 @@ use std::error::Error;
 use rustyline::Editor;
 use rustyline::history::DefaultHistory;
 
-// #[path = "../rsh/mod.rs"]
-// mod rsh;
-
 use rsh::rsh::{Session, read_block, Input};
 
 fn main() -> Result<(), Box<dyn Error>> {

@@ -8,5 +8,8 @@
 - [x] Keep history only for current session and avoid modifying the target project’s `Cargo.toml` or `src/main.rs`.
 - [x] Refactor project layout.
 - [ ] Add a user guide.
+- [ ] Add unit tests.
+- [ ] Bug: Do not mute async error in second run.
+
 
 

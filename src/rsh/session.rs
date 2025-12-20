@@ -27,10 +27,12 @@ pub struct Session {
     prev_body_len: usize,
     runtime_dir: PathBuf,
     rsh_path: PathBuf,
+    cargo_path: PathBuf,
 }
 
 impl Session {
     pub fn new() -> Self {
+        let cargo_path = Path::new("Cargo.toml").to_path_buf();
         let runtime_dir = Path::new("src").join("bin");
         let rsh_path = runtime_dir.join("__rsh.rs");
         Session {
@@ -41,6 +43,7 @@ impl Session {
             prev_body_len: 0,
             runtime_dir,
             rsh_path,
+            cargo_path,
         }
     }
 
@@ -200,8 +203,9 @@ impl Session {
             return Ok(());
         }
 
+        // TODO do not mute async error in second run.
         // Try to detect a runtime from Cargo.toml.
-        let runtime = detect_async_runtime();
+        let runtime = detect_async_runtime(&self.cargo_path);
         let Some(runtime) = runtime else {
             eprintln!("rsh: Async usage detected (`await` or async error), but no supported async runtime was found in Cargo.toml.");
             eprintln!("rsh: Please add one of: tokio, async-std, or smol to your Cargo.toml and try again.");
