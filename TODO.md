@@ -9,7 +9,4 @@
 - [x] Refactor project layout.
 - [ ] Add a user guide.
 - [ ] Add unit tests.
-- [ ] Bug: Do not mute async error in second run.
-
-
-
+- [x] Bug: rollback session if async errored in second run.

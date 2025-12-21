@@ -203,12 +203,13 @@ impl Session {
             return Ok(());
         }
 
-        // TODO do not mute async error in second run.
         // Try to detect a runtime from Cargo.toml.
         let runtime = detect_async_runtime(&self.cargo_path);
         let Some(runtime) = runtime else {
             eprintln!("rsh: Async usage detected (`await` or async error), but no supported async runtime was found in Cargo.toml.");
             eprintln!("rsh: Please add one of: tokio, async-std, or smol to your Cargo.toml and try again.");
+            self.preamble.truncate(self.prev_preamble_len);
+            self.body.truncate(self.prev_body_len);
             return Ok(());
         };
 
