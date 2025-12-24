@@ -19,6 +19,12 @@ pub enum Mode {
     Async(AsyncRuntime),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Segment {
+    Preamble,
+    Body,
+}
+
 pub struct Session {
     preamble: Vec<String>,
     body: Vec<String>,
@@ -79,21 +85,57 @@ impl Session {
         if self.preamble.is_empty() {
             println!("<empty>");
         } else {
-            for line in &self.preamble {
-                println!("{line}");
+            for (index, line) in self.preamble.iter().enumerate() {
+                println!("[{}] {}", index, line);
             }
         }
         println!("--- BODY ---");
         if self.body.is_empty() {
             println!("<empty>");
         } else {
-            for line in &self.body {
-                println!("{line}");
+            for (index, line) in self.body.iter().enumerate() {
+                println!("[{}] {}", index, line);
             }
         }
         println!("--- MODE ---");
         println!("{:?}", self.mode);
     }
+
+    pub fn delete(&mut self, segment: Segment, indices: &[usize]) {
+        let target_vec = match segment {
+            Segment::Preamble => &mut self.preamble,
+            Segment::Body => &mut self.body,
+        };
+
+        let mut sorted = indices.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup();
+        
+
+        // Atomic validation: if any index is out of bounds, abort the whole delete.
+        if let Some(&max_idx) = sorted.last() {
+            if max_idx >= target_vec.len() {
+                eprintln!(
+                    "rsh: indices {:?} out of bounds for {:?} (len = {})",
+                    sorted,
+                    segment,
+                    target_vec.len()
+                );
+                return;
+            }
+        } else {
+            // No indices after dedup – nothing to do.
+            return;
+        }
+
+        // All indices valid; perform deletions from largest to smallest.
+        for &idx in sorted.iter().rev() {
+            target_vec.remove(idx);
+        }
+
+        self.show();
+    }
+
 
     pub fn write_rsh_bin(&self) -> Result<(), Box<dyn Error>> {
         let path = &self.rsh_path;

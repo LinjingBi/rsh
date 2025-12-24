@@ -3,7 +3,7 @@ use std::error::Error;
 use rustyline::Editor;
 use rustyline::history::DefaultHistory;
 
-use rsh::rsh::{Session, read_block, Input};
+use rsh::rsh::{Session, read_block, Input, handle_delete_command};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut rl = Editor::<(), DefaultHistory>::new()?;
@@ -12,17 +12,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         match read_block(&mut rl) {
             Ok(Some(Input::Command(cmd))) => {
-                match cmd.as_str() {
-                    ":q" | ":quit" => break,
-                    ":reset" => {
-                        session.reset();
-                        println!("Session reset.");
-                    }
-                    ":show" => {
-                        session.show();
-                    }
-                    _ => {
-                        eprintln!("Unknown command: {cmd}");
+                if cmd.starts_with(":delete ") {
+                    handle_delete_command(&cmd, &mut session);
+                } else {
+                    match cmd.as_str() {
+                        ":q" | ":quit" => break,
+                        ":reset" => {
+                            session.reset();
+                            println!("Session reset.");
+                        }
+                        ":show" => {
+                            session.show();
+                        }
+                        _ => {
+                            eprintln!("Unknown command: {cmd}");
+                        }
                     }
                 }
             }

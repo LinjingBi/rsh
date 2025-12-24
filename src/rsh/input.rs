@@ -2,6 +2,8 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use rustyline::history::DefaultHistory;
 
+use super::session::{Segment, Session};
+
 pub enum Input {
     Command(String),
     Code(String),
@@ -43,6 +45,57 @@ pub fn read_block(rl: &mut Editor<(), DefaultHistory>) -> Result<Option<Input>, 
         prompt = "...> ";
     }
 }
+
+/// Handle the `:delete` meta-command.
+///
+/// Expected syntax:
+/// `:delete <preamble|body> <index...>`
+pub fn handle_delete_command(cmd: &str, session: &mut Session) {
+    let mut parts = cmd.split_whitespace();
+    let head = parts.next().unwrap_or("");
+
+    if head != ":delete" {
+        eprintln!("rsh: internal error: handle_delete_command called with non-:delete command");
+        return;
+    }
+
+    let target_str = match parts.next() {
+        Some(s) => s,
+        None => {
+            eprintln!("Usage: :delete <preamble|body> <index...>");
+            return;
+        }
+    };
+
+    let segment = match target_str {
+        "preamble" => Segment::Preamble,
+        "body" => Segment::Body,
+        other => {
+            eprintln!("Invalid segment '{}'; expected 'preamble' or 'body'.", other);
+            return;
+        }
+    };
+
+    let mut indices: Vec<usize> = Vec::new();
+
+    for p in parts {
+        match p.parse::<usize>() {
+            Ok(i) => indices.push(i),
+            Err(_) => {
+                eprintln!("Invalid index: '{}'", p);
+                return;
+            }
+        }
+    }
+
+    if indices.is_empty() {
+        eprintln!("Usage: :delete <preamble|body> <index...>");
+        return;
+    }
+
+    session.delete(segment, &indices);
+}
+
 
 pub fn is_preamble_line(line: &str) -> bool {
     let prefixes = [

@@ -1,33 +1,8 @@
 # This project is co-designed and developed by a human, ChatGPT, and Cursor.
 
-# Cursor Task Prompt — rsh Implementation
+# rsh
 
-## Task
-Implement a Rust CLI tool called `rsh`, a REPL-like development shell for Rust projects.
-
-## High-level Goal
-- Allow developers to iteratively type Rust code in a terminal.
-- Each input block regenerates a temporary Rust binary and runs it using Cargo.
-- The interaction rhythm should feel like a Python REPL, but execution remains honest to Rust’s compilation model.
-
-## Key Constraints (Must Follow)
-1. The tool runs inside an existing Cargo project (single crate).
-2. It uses the project’s existing Cargo environment:
-   - `Cargo.toml`
-   - `Cargo.lock`
-   - `target/` build cache
-3. It does **not**:
-   - modify `Cargo.toml`
-   - add dependencies or features
-   - change toolchains
-   - touch `src/main.rs`
-4. It generates and overwrites:
-   - `src/bin/__rsh.rs`
-5. It invokes Cargo as:
-   - `cargo run --bin __rsh`
-   using the `cargo` executable found in `PATH`.
-
----
+a Rust CLI tool called `rsh`, a REPL-like development shell for Rust projects.
 
 ## Usage
 
@@ -51,6 +26,48 @@ From the root of a **single-crate** Cargo project where you want to experiment:
 
 - `rsh` expects to run in a directory that contains a `Cargo.toml`.
 - It will create and overwrite `src/bin/__rsh.rs` in that project.
+
+---
+
+## Commands
+
+The following meta-commands are recognized **only** when typed as the first line of a new block (at `rsh> `):
+
+- `:quit` / `:q` → exit the `rsh` session.
+- `:reset` → clear PREAMBLE and BODY buffers and reset to sync mode.
+- `:show` → print the current PREAMBLE, BODY, and mode.
+
+- `:delete <preamble|body> <index...>` → delete one or more lines from the PREAMBLE or BODY by index.
+  - Example: `:delete preamble 0 2 3` removes indices `0`, `2`, and `3` from the PREAMBLE buffer.
+  - Indices are space-separated zero-based line numbers as shown by `:show`.
+  - Deletion is **atomic**: if any index is invalid for the chosen buffer, no lines are deleted and an error is printed.
+
+
+Any other line (including lines that later fail to compile) is treated as Rust code and appended to PREAMBLE or BODY based on the prefix rules.
+
+---
+
+## High-level Goal
+- Allow developers to iteratively type Rust code in a terminal.
+- Each input block regenerates a temporary Rust binary and runs it using Cargo.
+- The interaction rhythm should feel like a Python REPL, but execution remains honest to Rust’s compilation model.
+
+## Key Constraints (Must Follow)
+1. The tool runs inside an existing Cargo project (single crate).
+2. It uses the project’s existing Cargo environment:
+   - `Cargo.toml`
+   - `Cargo.lock`
+   - `target/` build cache
+3. It does **not**:
+   - modify `Cargo.toml`
+   - add dependencies or features
+   - change toolchains
+   - touch `src/main.rs`
+4. It generates and overwrites:
+   - `src/bin/__rsh.rs`
+5. It invokes Cargo as:
+   - `cargo run --bin __rsh`
+   using the `cargo` executable found in `PATH`.
 
 ---
 
@@ -148,18 +165,6 @@ These buffers persist for the duration of the `rsh` session and are completely r
 
 ---
 
-## Commands
-
-The following meta-commands are recognized **only** when typed as the first line of a new block (at `rsh> `):
-
-- `:quit` / `:q` → exit the `rsh` session.
-- `:reset` → clear PREAMBLE and BODY buffers and reset to sync mode.
-- `:show` → print the current PREAMBLE, BODY, and mode.
-
-Any other line (including lines that later fail to compile) is treated as Rust code and appended to PREAMBLE or BODY based on the prefix rules.
-
----
-
 ## Async Auto-Switch
 
 - Start in **sync** mode.
@@ -198,5 +203,3 @@ Any other line (including lines that later fail to compile) is treated as Rust c
 - Persistent runtime state across sessions.
 - LLM-generated code execution.
 - User-controlled cleanup flag(cleanup target dir).
-- Editable history.
-
