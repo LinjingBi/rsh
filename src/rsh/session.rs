@@ -101,6 +101,19 @@ impl Session {
         println!("{:?}", self.mode);
     }
 
+    // Public getters for testing (integration tests need these)
+    pub fn preamble(&self) -> &[String] {
+        &self.preamble
+    }
+
+    pub fn body(&self) -> &[String] {
+        &self.body
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
+    }
+
     pub fn delete(&mut self, segment: Segment, indices: &[usize]) {
         let target_vec = match segment {
             Segment::Preamble => &mut self.preamble,
