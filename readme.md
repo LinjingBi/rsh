@@ -6,6 +6,14 @@ a Rust CLI tool called `rsh`, a REPL-like development shell for Rust projects.
 
 ## Usage
 
+### Testing `rsh`
+
+From this repository:
+
+```bash
+cargo test
+```
+
 ### Building `rsh`
 
 From this repository:

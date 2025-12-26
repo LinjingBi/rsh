@@ -5,12 +5,14 @@ use std::process::Command;
 
 use super::session::AsyncRuntime;
 
-pub fn run_cargo_rsh() -> Result<std::process::Output, Box<dyn Error>> {
+
+pub fn run_cargo_rsh<P: AsRef<Path>>(dir: P) -> Result<std::process::Output, Box<dyn Error>> {
     let output = Command::new("cargo")
         .arg("run")
         .arg("--quiet")
         .arg("--bin")
         .arg("__rsh")
+        .current_dir(dir)
         .output()?;
     Ok(output)
 }

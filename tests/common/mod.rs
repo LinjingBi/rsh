@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 pub struct TestProject {
@@ -9,7 +9,16 @@ pub struct TestProject {
 impl TestProject {
     /// Create a new temporary Cargo project in tests/fixtures/
     pub fn new(name: &str) -> Self {
-        let project_path = Path::new("tests/fixtures").join(name);
+        // Find workspace root - CARGO_MANIFEST_DIR is required
+        let workspace_root: PathBuf = std::env::var("CARGO_MANIFEST_DIR")
+            .expect("CARGO_MANIFEST_DIR environment variable must be set. This is typically set automatically by Cargo when running tests.")
+            .into();
+        
+        // let workspace_root = PathBuf::from(workspace_root)
+        //     .canonicalize()
+        //     .expect("Failed to canonicalize workspace root path");
+        
+        let project_path = workspace_root.join("tests/fixtures").join(name);
         
         // Clean up if it already exists
         if project_path.exists() {
@@ -99,21 +108,23 @@ smol = "1.0"
         fs::read_to_string(self.rsh_bin_path()).unwrap_or_default()
     }
 
-    /// Verify that __rsh.rs exists
-    pub fn rsh_bin_exists(&self) -> bool {
-        self.rsh_bin_path().exists()
-    }
-
-    /// Change to this project's directory and run a closure
-    pub fn with_dir<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&self.path).unwrap();
-        let result = f();
-        std::env::set_current_dir(original_dir).unwrap();
-        result
+    /// Fetch dependencies for this project (downloads to local cache)
+    /// This allows tests to run offline after dependencies are fetched once
+    pub fn fetch_dependencies(&self) -> bool {
+        let output = Command::new("cargo")
+            .arg("fetch")
+            .arg("--manifest-path")
+            .arg(self.path.join("Cargo.toml"))
+            .output()
+            .unwrap_or_else(|_| {
+                // If fetch fails, try with current_dir (for older cargo versions)
+                Command::new("cargo")
+                    .arg("fetch")
+                    .current_dir(&self.path)
+                    .output()
+                    .unwrap()
+            });
+        output.status.success()
     }
 
     /// Clean up the test project
@@ -123,18 +134,6 @@ smol = "1.0"
                 eprintln!("Warning: Failed to cleanup test project {:?}: {}", self.path, e);
             });
         }
-    }
-
-    /// Run cargo build to ensure the project is valid
-    pub fn build(&self) -> bool {
-        self.with_dir(|| {
-            let output = Command::new("cargo")
-                .arg("build")
-                .arg("--quiet")
-                .output()
-                .unwrap();
-            output.status.success()
-        })
     }
 }
 

@@ -31,22 +31,37 @@ pub struct Session {
     mode: Mode,
     prev_preamble_len: usize,
     prev_body_len: usize,
+    base_dir: PathBuf,
     runtime_dir: PathBuf,
     rsh_path: PathBuf,
     cargo_path: PathBuf,
 }
 
 impl Session {
-    pub fn new() -> Self {
-        let cargo_path = Path::new("Cargo.toml").to_path_buf();
-        let runtime_dir = Path::new("src").join("bin");
+    /// Create a new Session with an optional base directory.
+    /// If `base_dir` is `None`, uses the current directory.
+    pub fn new<P: AsRef<Path>>(base_dir: Option<P>) -> Self {
+        let base = if let Some(dir) = base_dir {
+            dir.as_ref().canonicalize()
+                .unwrap_or_else(|_| dir.as_ref().to_path_buf())
+        } else {
+            std::env::current_dir()
+                .unwrap()
+                .canonicalize()
+                .unwrap_or_else(|_| std::env::current_dir().unwrap())
+        };
+        
+        let cargo_path = base.join("Cargo.toml");
+        let runtime_dir = base.join("src").join("bin");
         let rsh_path = runtime_dir.join("__rsh.rs");
+        
         Session {
             preamble: Vec::new(),
             body: Vec::new(),
             mode: Mode::Sync,
             prev_preamble_len: 0,
             prev_body_len: 0,
+            base_dir: base,
             runtime_dir,
             rsh_path,
             cargo_path,
@@ -234,12 +249,14 @@ impl Session {
 
         // First attempt in current mode.
         self.write_rsh_bin()?;
-        let output = run_cargo_rsh()?;
+        let output = run_cargo_rsh(&self.base_dir)?;
 
-        io::stdout().write_all(&output.stdout)?;
-        io::stderr().write_all(&output.stderr)?;
+        // io::stdout().write_all(&output.stdout)?;
+        // io::stderr().write_all(&output.stderr)?;
 
         if output.status.success() {
+            io::stdout().write_all(&output.stdout)?;
+            io::stderr().write_all(&output.stderr)?;
             return Ok(());
         }
 
@@ -248,6 +265,8 @@ impl Session {
         // not aysnc error, remove the code from session
         if !looks_like_async_error(&stderr_str) {
             // user code failed: roll back buffers only
+            io::stdout().write_all(&output.stdout)?;
+            io::stderr().write_all(&output.stderr)?;
             self.preamble.truncate(self.prev_preamble_len);
             self.body.truncate(self.prev_body_len);
             return Ok(());
@@ -273,7 +292,7 @@ impl Session {
 
         // Regenerate in async mode and rerun once.
         self.write_rsh_bin()?;
-        let output2 = run_cargo_rsh()?;
+        let output2 = run_cargo_rsh(&self.base_dir)?;
         io::stdout().write_all(&output2.stdout)?;
         io::stderr().write_all(&output2.stderr)?;
 

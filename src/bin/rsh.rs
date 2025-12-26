@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::path::PathBuf;
 
 use rustyline::Editor;
 use rustyline::history::DefaultHistory;
@@ -7,7 +8,7 @@ use rsh::rsh::{Session, read_block, Input, handle_delete_command};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut rl = Editor::<(), DefaultHistory>::new()?;
-    let mut session = Session::new();
+    let mut session = Session::new(None::<PathBuf>);
 
     loop {
         match read_block(&mut rl) {
