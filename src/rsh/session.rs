@@ -3,7 +3,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use super::input::is_preamble_line;
+use super::input::{is_preamble_line, count_opening_braces, count_closing_braces};
 use super::utils::{run_cargo_rsh, looks_like_async_error, detect_async_runtime};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,19 +76,46 @@ impl Session {
         self.prev_body_len = 0;
     }
 
+
+
     pub fn add_code_block(&mut self, block: &str) {
         // snapshot previous successful state
         self.prev_preamble_len = self.preamble.len();
         self.prev_body_len = self.body.len();
 
+        let mut in_preamble_construct = false;
+        let mut brace_depth = 0;
+
         for line in block.lines() {
             let trimmed_start = line.trim_start();
             if trimmed_start.is_empty() {
+                // Preserve empty lines when in preamble construct
+                if in_preamble_construct {
+                    self.preamble.push(line.to_string());
+                }
+                // Skip empty lines when not in preamble construct
                 continue;
             }
 
-            if is_preamble_line(trimmed_start) {
+            // Check if this line starts a preamble construct
+            let starts_preamble = is_preamble_line(trimmed_start);
+            
+            // Update brace depth based on the line content
+            brace_depth += count_opening_braces(trimmed_start);
+            brace_depth -= count_closing_braces(trimmed_start);
+            
+            // If we start a preamble construct, enter preamble mode
+            if starts_preamble {
+                in_preamble_construct = true;
+            }
+            
+            // If we're in a preamble construct, add to preamble
+            if in_preamble_construct {
                 self.preamble.push(line.to_string());
+                // Exit preamble construct when all braces are closed
+                if brace_depth == 0 {
+                    in_preamble_construct = false;
+                }
             } else {
                 self.body.push(line.to_string());
             }

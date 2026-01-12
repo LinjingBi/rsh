@@ -10,3 +10,5 @@
 - [x] Add a user guide.
 - [x] Add unit tests.
 - [x] Bug: rollback session if async errored in second run.
+- [ ] Add github CI/CD pipeline.
+- [x] Bug: fix multi-line preamble detection -> read until block end.

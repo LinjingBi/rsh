@@ -129,3 +129,13 @@ pub fn is_preamble_line(line: &str) -> bool {
     false
 }
 
+/// Count opening braces ({, [, () in a line
+pub fn count_opening_braces(line: &str) -> i32 {
+    line.chars().filter(|&c| c == '{' || c == '[' || c == '(').count() as i32
+}
+
+/// Count closing braces (}, ], )) in a line
+pub fn count_closing_braces(line: &str) -> i32 {
+    line.chars().filter(|&c| c == '}' || c == ']' || c == ')').count() as i32
+}
+
